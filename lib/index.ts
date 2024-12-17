@@ -18,7 +18,6 @@ import {
   InitOptions,
   InitResult,
   ObserveOptions,
-  ObserveResult,
 } from "../types/stagehand";
 import { scriptContent } from "./dom/build/scriptContent";
 import { StagehandActHandler } from "./handlers/actHandler";
@@ -803,7 +802,7 @@ export class Stagehand {
       });
   }
 
-  async observe(options?: ObserveOptions): Promise<ObserveResult[]> {
+  async observe(options?: ObserveOptions): Promise<{ code: string }[]> {
     if (!this.observeHandler) {
       throw new Error("Observe handler not initialized");
     }

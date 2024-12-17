@@ -100,11 +100,21 @@ export async function act({
   logger,
   requestId,
   variables,
+  previousAttempt,
 }: ActParams): Promise<ActResult | null> {
-  const messages: ChatMessage[] = [
-    buildActSystemPrompt(),
-    buildActUserPrompt(action, steps, domElements, variables),
-  ];
+  const userPrompt = buildActUserPrompt(
+    action,
+    steps,
+    domElements,
+    variables,
+    previousAttempt,
+  );
+  const messages: ChatMessage[] = [buildActSystemPrompt(), userPrompt];
+
+  logger({
+    category: "act",
+    message: `running act with prompt ${JSON.stringify(userPrompt.content)}`,
+  });
 
   const response = await llmClient.createChatCompletion({
     messages,
@@ -248,37 +258,40 @@ export async function extract({
 export async function observe({
   instruction,
   domElements,
+  selectorMap,
   llmClient,
   image,
   requestId,
 }: {
   instruction: string;
   domElements: string;
+  selectorMap: Record<number, string[]>;
   llmClient: LLMClient;
   image?: Buffer;
   requestId: string;
 }): Promise<{
-  elements: { elementId: number; description: string }[];
+  elements: { code: string }[];
 }> {
   const observeSchema = z.object({
     elements: z
       .array(
         z.object({
-          elementId: z.number().describe("the number of the element"),
-          description: z
+          code: z
             .string()
             .describe(
-              "a description of the element and what it is relevant for",
+              "a line of playwright code that will correctly validate the instruction",
             ),
         }),
       )
-      .describe("an array of elements that match the instruction"),
+      .describe(
+        "an array of playwright commands that will correctly validate the instruction",
+      ),
   });
 
   const observationResponse = await llmClient.createChatCompletion({
     messages: [
       buildObserveSystemPrompt(),
-      buildObserveUserMessage(instruction, domElements),
+      buildObserveUserMessage(instruction, domElements, selectorMap),
     ],
     image: image
       ? { buffer: image, description: AnnotatedScreenshotText }

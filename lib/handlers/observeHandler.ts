@@ -79,7 +79,7 @@ export class StagehandObserveHandler {
     llmClient: LLMClient;
     requestId?: string;
     domSettleTimeoutMs?: number;
-  }): Promise<{ selector: string; description: string }[]> {
+  }): Promise<{ code: string }[]> {
     if (!instruction) {
       instruction = `Find elements that can be used for any future actions in the page. These may be navigation links, related pages, section/subsection links, buttons, or other interactive elements. Be comprehensive: if there are multiple elements that may be relevant for future actions, return all of them.`;
     }
@@ -134,37 +134,42 @@ export class StagehandObserveHandler {
     const observationResponse = await observe({
       instruction,
       domElements: outputString,
+      selectorMap: selectorMap,
       llmClient,
       image: annotatedScreenshot,
       requestId,
     });
 
-    const elementsWithSelectors = observationResponse.elements.map(
-      (element) => {
-        const { elementId, ...rest } = element;
+    // const elementsWithSelectors = observationResponse.elements.map(
+    //   (element) => {
+    //     const { elementId, ...rest } = element;
 
-        return {
-          ...rest,
-          selector: `xpath=${selectorMap[elementId][0]}`,
-        };
-      },
-    );
+    //     return {
+    //       ...rest,
+    //       selector: `xpath=${selectorMap[elementId][0]}`,
+    //     };
+    //   },
+    // );
 
     await this.cleanupDomDebug();
 
     this.logger({
-      category: "observation",
-      message: "found elements",
+      category: "validation",
+      message: "got code!!!",
       level: 1,
       auxiliary: {
-        elements: {
-          value: JSON.stringify(elementsWithSelectors),
-          type: "object",
+        code: {
+          value: observationResponse.elements.map((e) => e.code).join("\n"),
+          type: "string",
+        },
+        description: {
+          value: instruction,
+          type: "string",
         },
       },
     });
 
-    await this._recordObservation(instruction, elementsWithSelectors);
-    return elementsWithSelectors;
+    // await this._recordObservation(instruction, elementsWithSelectors);
+    return observationResponse["elements"];
   }
 }

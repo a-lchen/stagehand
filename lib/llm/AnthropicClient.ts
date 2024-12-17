@@ -34,7 +34,7 @@ export class AnthropicClient extends LLMClient {
     const { image: _, ...optionsWithoutImage } = options;
     this.logger({
       category: "anthropic",
-      message: "creating chat completion",
+      message: "creating chat completion!! ACF ACF",
       level: 1,
       auxiliary: {
         options: {

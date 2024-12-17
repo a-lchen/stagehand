@@ -934,6 +934,7 @@ export class StagehandActHandler {
     previousSelectors,
     skipActionCacheForThisStep = false,
     domSettleTimeoutMs,
+    previousAttempt = undefined,
   }: {
     action: string;
     steps?: string;
@@ -947,6 +948,13 @@ export class StagehandActHandler {
     previousSelectors: string[];
     skipActionCacheForThisStep: boolean;
     domSettleTimeoutMs?: number;
+    previousAttempt?: {
+      elementId: string;
+      elementText: string;
+      method: string;
+      xpaths: string;
+      args: string;
+    };
   }): Promise<{ success: boolean; message: string; action: string }> {
     try {
       await this.waitForSettledDom(domSettleTimeoutMs);
@@ -1101,6 +1109,7 @@ export class StagehandActHandler {
         logger: this.logger,
         requestId,
         variables,
+        previousAttempt,
       });
 
       this.logger({
@@ -1194,6 +1203,7 @@ export class StagehandActHandler {
       const xpaths = selectorMap[elementId];
       const method = response["method"];
       const args = response["args"];
+      const description = response["step"];
 
       // Get the element text from the outputString
       const elementLines = outputString.split("\n");
@@ -1209,6 +1219,14 @@ export class StagehandActHandler {
         auxiliary: {
           method: {
             value: method,
+            type: "string",
+          },
+          description: {
+            value: description,
+            type: "string",
+          },
+          description_2: {
+            value: "hello",
             type: "string",
           },
           elementId: {
@@ -1325,6 +1343,13 @@ export class StagehandActHandler {
             previousSelectors: [...previousSelectors, xpaths[0]],
             skipActionCacheForThisStep: false,
             domSettleTimeoutMs,
+            previousAttempt: {
+              elementId: elementId.toString(),
+              elementText: elementText,
+              method: method,
+              xpaths: JSON.stringify(xpaths),
+              args: JSON.stringify(args),
+            },
           });
         } else {
           this.logger({

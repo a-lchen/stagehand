@@ -11,7 +11,8 @@ You will receive:
 1. the user's overall goal
 2. the steps that you've taken so far
 3. a list of active DOM elements in this chunk to consider to get closer to the goal. 
-4. Optionally, a list of variable names that the user has provided that you may use to accomplish the goal. To use the variables, you must use the special <|VARIABLE_NAME|> syntax.
+4. Optionally, the elementId: string, elementText: string, xpaths: string, args: string, method: string of what was tried last time but failed. If this is passed in, consider it carefully and do not return the same thing. Try something else instead.
+5. Optionally, a list of variable names that the user has provided that you may use to accomplish the goal. To use the variables, you must use the special <|VARIABLE_NAME|> syntax.
 
 
 ## Your Goal / Specification
@@ -107,6 +108,13 @@ export function buildActUserPrompt(
   steps = "None",
   domElements: string,
   variables?: Record<string, string>,
+  previousAttempt?: {
+    elementId: string;
+    elementText: string;
+    method: string;
+    xpaths: string;
+    args: string;
+  },
 ): ChatMessage {
   let actUserPrompt = `
 # My Goal
@@ -118,6 +126,18 @@ ${steps}
 # Current Active Dom Elements
 ${domElements}
 `;
+
+  if (previousAttempt) {
+    actUserPrompt += `
+# Previous Attempt
+elementId: ${previousAttempt.elementId}
+elementText: ${previousAttempt.elementText}
+method: ${previousAttempt.method}
+xpaths: ${previousAttempt.xpaths}
+args: ${previousAttempt.args}
+
+`;
+  }
 
   if (variables && Object.keys(variables).length > 0) {
     actUserPrompt += `
@@ -164,7 +184,7 @@ export const actTools: Array<OpenAI.ChatCompletionTool> = [
           step: {
             type: "string",
             description:
-              "human readable description of the step that is taken in the past tense. Please be very detailed.",
+              "human readable description of the step that is being taken. Please be very detailed. This string will be passed into an LLM agent in the future in order to execute this action again, so be general enough that an agent would understand textually what to do, but specific enough that an agent can replicate it.",
           },
           why: {
             type: "string",
@@ -295,12 +315,17 @@ chunksTotal: ${chunksTotal}`,
 
 // observe
 const observeSystemPrompt = `
-You are helping the user automate the browser by finding elements based on what the user wants to observe in the page.
-You will be given:
-1. a instruction of elements to observe
-2. a numbered list of possible elements or an annotated image of the page
+Your job is to generate playwright code to accomplish the given task, which is to validate some sort of statement about the webpage using playwright.
 
-Return an array of elements that match the instruction.
+                You must generate runnable, working playwright code. Do not generate any of the surrounding code or setup for the test, that will all be taken care of.
+
+                Your code will be stitched together with other playwright code and run.
+
+                You will be given relevant DOM elements and screenshots to use to generate this code. We will also provide selectors with xpaths for you to use. Whenever you're asserting on some element, please use the appropriate xpath selector so you can be as precise as possible.
+
+                If you do this right you will be rewarded 1 million dollars. Be very careful.
+
+                Generate just enough code to validate what you need. Do not generate too much. You will be punished if you generate more than needed.
 `;
 export function buildObserveSystemPrompt(): ChatMessage {
   const content = observeSystemPrompt.replace(/\s+/g, " ");
@@ -314,11 +339,13 @@ export function buildObserveSystemPrompt(): ChatMessage {
 export function buildObserveUserMessage(
   instruction: string,
   domElements: string,
+  selectorMap: Record<number, string[]>,
 ): ChatMessage {
   return {
     role: "user",
     content: `instruction: ${instruction}
-DOM: ${domElements}`,
+DOM: ${domElements}
+Selector Map: ${JSON.stringify(selectorMap, null, 2)}`,
   };
 }
 

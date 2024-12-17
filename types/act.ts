@@ -11,6 +11,13 @@ export interface ActParams {
   logger: (message: { category?: string; message: string }) => void;
   requestId: string;
   variables?: Record<string, string>;
+  previousAttempt?: {
+    elementId: string;
+    elementText: string;
+    method: string;
+    xpaths: string;
+    args: string;
+  };
 }
 
 export interface ActResult {
